@@ -15,12 +15,10 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 import cv2
 import string
 import pandas as pd
 import warnings
-import seaborn as sns
 import random
 import math
 from enum import Enum, auto

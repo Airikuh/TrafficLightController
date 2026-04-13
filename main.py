@@ -179,8 +179,10 @@ class Vehicle:
         return "EW"
 
     def is_inside_intersection(self):
-        rect = self.rect()
-        return INTERSECTION.colliderect(rect)
+        #rect = self.rect()
+        #return INTERSECTION.colliderect(rect)
+    # Cars were freezing after they passed the intersection. Changed to this line
+        return INTERSECTION.colliderect(self.rect())
 
     def passed_intersection(self):
         if self.direction == Direction.n_s:
@@ -196,6 +198,59 @@ class Vehicle:
             return pygame.Rect(int(self.x - self.width / 2), int(self.y - self.length / 2), self.width, self.length)
         else:
             return pygame.Rect(int(self.x - self.length / 2), int(self.y - self.width / 2), self.length, self.width)
+
+# Added the following 4 functions to prevent cars from freezing after they passed the intersection (normal vehicle spawn was causing it too)
+#Determine if a normal vehicle has cross the stop line or note
+    def has_crossed_stop_line(self):
+        front = self.first_position()
+        stop_pos = self.stop_line_position()
+        if self.direction == Direction.n_s:
+            return front > stop_pos
+        if self.direction == Direction.s_n:
+            return front < stop_pos
+        if self.direction == Direction.w_e:
+            return front > stop_pos
+        return front < stop_pos
+
+# Function to determine if a normal vehicle is moving toward the stop line (or else is moving away from it)
+    def is_approaching_stop_line(self):
+        return (not self.is_inside_intersection()) and (not self.has_crossed_stop_line())
+
+# Function to determine the distance to the vehicle in the 1st position
+    def distance_to_lead_vehicle(self, other):
+        if self.direction == Direction.n_s and other.y > self.y:
+            return other.y - self.y
+        if self.direction == Direction.s_n and other.y < self.y:
+            return self.y - other.y
+        if self.direction == Direction.w_e and other.x > self.x:
+            return other.x - self.x
+        if self.direction == Direction.e_w and other.x < self.x:
+            return self.x - other.x
+        return None
+
+# One update caused Emergency Vehicles to Freeze behind normal vehicles. 
+# This Function was added to prevent that. 
+    def blocked_by_lead_vehicle(self, vehicles, controller):
+# Emergency vehicles now get a protected corridor during EMERGENCY mode. Prevents them from entering queue behind normal vehicles
+        if self.emergency and controller.phase == Phase.EMERGENCY:
+            return False
+        for other in vehicles:
+            if other is self or other.direction != self.direction or other.removed:
+                continue
+            distance = self.distance_to_lead_vehicle(other)
+            if distance is None:
+                continue
+# Prevents cars beyond the intersection moving away from it from freezing in place
+            if other.has_crossed_stop_line() and not other.is_inside_intersection():
+                if distance > QUEUE_GAP:
+                    continue
+            if distance < QUEUE_GAP:
+                return True
+        return False
+
+
+
+
 
     def can_move(self, controller, vehicles):
 # EMERGENCY VEHICLE PHASE: Emergency Vehicle gets exclusive path
